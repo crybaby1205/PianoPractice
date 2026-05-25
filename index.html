@@ -519,33 +519,62 @@ function renderForm(){
   const pv=prevSteps();
   const submitFn=isEdit?'saveEdit()':'submitBlock()';
   const cancelFn=isEdit?'cancelEdit('+blockId+')':'cancelAdd()';
+  // KEY FIX: speed inputs use onchange+onblur only — never oninput that triggers re-render mid-type
   wrap.innerHTML='<div class="edit-form-wrap"><div style="font-size:.82rem;font-weight:900;color:'+(isEdit?'var(--go)':'var(--pul)')+';margin-bottom:12px">'+(isEdit?'Edit Section':'Add Practice Section')+'</div>'
-    +'<div class="g2 field"><div><label class="fl">From Measure</label><input type="number" id="f-start" value="'+esc(F.start)+'" oninput="F.start=this.value" placeholder="1"></div>'
-    +'<div><label class="fl">To Measure</label><input type="number" id="f-end" value="'+esc(F.end)+'" oninput="F.end=this.value" placeholder="8"></div></div>'
+    +'<div class="g2 field">'
+    +'<div><label class="fl">From Measure</label><input type="number" id="f-start" value="'+esc(F.start)+'" placeholder="1" inputmode="numeric"></div>'
+    +'<div><label class="fl">To Measure</label><input type="number" id="f-end" value="'+esc(F.end)+'" placeholder="8" inputmode="numeric"></div>'
+    +'</div>'
     +'<div class="field"><label class="fl">Which Hands?</label><div class="togs">'+hH+'</div></div>'
     +'<div class="field"><label class="fl">Speed Range (BPM)</label>'
     +'<div class="g5">'
-    +'<div><label class="fl" style="font-size:.54rem">From</label><input type="number" id="f-sfrom" value="'+F.speedFrom+'" oninput="F.speedFrom=parseInt(this.value)||60;renderForm()"></div>'
+    +'<div><label class="fl" style="font-size:.54rem">From</label><input type="number" id="f-sfrom" value="'+F.speedFrom+'" inputmode="numeric" onblur="speedBlur()" onchange="speedBlur()"></div>'
     +'<div class="gsep">to</div>'
-    +'<div><label class="fl" style="font-size:.54rem">To</label><input type="number" id="f-sto" value="'+F.speedTo+'" oninput="F.speedTo=parseInt(this.value)||60;renderForm()"></div>'
+    +'<div><label class="fl" style="font-size:.54rem">To</label><input type="number" id="f-sto" value="'+F.speedTo+'" inputmode="numeric" onblur="speedBlur()" onchange="speedBlur()"></div>'
     +'<div class="gsep">+</div>'
-    +'<div><label class="fl" style="font-size:.54rem">Step</label><input type="number" id="f-sstep" value="'+F.speedStep+'" oninput="F.speedStep=parseInt(this.value)||5;renderForm()"></div>'
-    +'</div><div class="sprev">Steps: '+pv+'</div></div>'
+    +'<div><label class="fl" style="font-size:.54rem">Step</label><input type="number" id="f-sstep" value="'+F.speedStep+'" inputmode="numeric" onblur="speedBlur()" onchange="speedBlur()"></div>'
+    +'</div>'
+    +'<div class="sprev" id="sprev-label">Steps: '+pv+'</div>'
+    +'</div>'
     +'<div class="field"><label class="fl">Reps per Speed Step</label>'
     +'<div class="reps-row">'
     +'<button class="reps-st" onclick="adjReps(-1)">-</button>'
-    +'<input type="number" id="fReps" class="reps-n" value="'+F.repsTarget+'" min="1" max="99" oninput="F.repsTarget=Math.max(1,parseInt(this.value)||1)">'
+    +'<input type="number" id="fReps" class="reps-n" value="'+F.repsTarget+'" min="1" max="99" inputmode="numeric">'
     +'<button class="reps-st" onclick="adjReps(1)">+</button>'
     +'</div></div>'
     +'<div class="field"><label class="fl go">Rhythm Style (16th notes - optional)</label><div class="togs" style="flex-wrap:wrap">'+rH+'</div></div>'
-    +'<div class="field"><label class="fl">Teacher Note (optional)</label><input type="text" id="f-notes" value="'+esc(F.notes)+'" oninput="F.notes=this.value" placeholder="e.g. Listen carefully! Stay slow!"></div>'
+    +'<div class="field"><label class="fl">Teacher Note (optional)</label><input type="text" id="f-notes" value="'+esc(F.notes)+'" placeholder="e.g. Listen carefully! Stay slow!"></div>'
     +'<div class="brow"><button class="btn pu" onclick="'+submitFn+'">'+(isEdit?'Save Changes':'Add Section')+'</button><button class="btn gh" onclick="'+cancelFn+'">Cancel</button></div>'
     +'</div>';
 }
 
-function setH(id){F.handMode=id;renderForm();}
-function setR(id){F.rhythmStyle=(F.rhythmStyle===id?'':id);renderForm();}
-function adjReps(d){F.repsTarget=Math.max(1,Math.min(99,F.repsTarget+d));const el=document.getElementById('fReps');if(el)el.value=F.repsTarget;}
+// Called when speed inputs lose focus — updates preview without re-rendering the whole form
+function speedBlur(){
+  const sfe=document.getElementById('f-sfrom'),ste=document.getElementById('f-sto'),spe=document.getElementById('f-sstep');
+  if(sfe&&sfe.value!=='')F.speedFrom=parseInt(sfe.value)||60;
+  if(ste&&ste.value!=='')F.speedTo=parseInt(ste.value)||60;
+  if(spe&&spe.value!=='')F.speedStep=Math.max(1,parseInt(spe.value)||5);
+  const lbl=document.getElementById('sprev-label');
+  if(lbl)lbl.textContent='Steps: '+prevSteps();
+}
+
+function setH(id){
+  // Read current field values before re-rendering so nothing is lost
+  readForm();
+  F.handMode=id;
+  renderForm();
+}
+function setR(id){
+  readForm();
+  F.rhythmStyle=(F.rhythmStyle===id?'':id);
+  renderForm();
+}
+function adjReps(d){
+  const el=document.getElementById('fReps');
+  const cur=el?Math.max(1,parseInt(el.value)||1):F.repsTarget;
+  F.repsTarget=Math.max(1,Math.min(99,cur+d));
+  if(el)el.value=F.repsTarget;
+}
 function prevSteps(){
   const f=F.speedFrom||60,t=Math.max(F.speedFrom||60,F.speedTo||60),s=Math.max(1,F.speedStep||5);
   const a=[];for(let v=f;v<=t;v+=s)a.push(v);
@@ -553,10 +582,14 @@ function prevSteps(){
   return[...new Set(a)].join(' > ');
 }
 function readForm(){
-  const se=document.getElementById('f-start'),ee=document.getElementById('f-end'),re=document.getElementById('fReps'),ne=document.getElementById('f-notes');
-  const sfe=document.getElementById('f-sfrom'),ste=document.getElementById('f-sto'),spe=document.getElementById('f-sstep');
-  if(se)F.start=se.value;if(ee)F.end=ee.value;if(re)F.repsTarget=Math.max(1,parseInt(re.value)||1);if(ne)F.notes=ne.value;
-  if(sfe)F.speedFrom=parseInt(sfe.value)||60;if(ste)F.speedTo=parseInt(ste.value)||60;if(spe)F.speedStep=Math.max(1,parseInt(spe.value)||5);
+  // Read all current input values into F without triggering any re-render
+  const se=document.getElementById('f-start');      if(se)F.start=se.value;
+  const ee=document.getElementById('f-end');        if(ee)F.end=ee.value;
+  const sfe=document.getElementById('f-sfrom');     if(sfe&&sfe.value!=='')F.speedFrom=parseInt(sfe.value)||60;
+  const ste=document.getElementById('f-sto');       if(ste&&ste.value!=='')F.speedTo=parseInt(ste.value)||60;
+  const spe=document.getElementById('f-sstep');     if(spe&&spe.value!=='')F.speedStep=Math.max(1,parseInt(spe.value)||5);
+  const re=document.getElementById('fReps');        if(re&&re.value!=='')F.repsTarget=Math.max(1,parseInt(re.value)||1);
+  const ne=document.getElementById('f-notes');      if(ne)F.notes=ne.value;
 }
 function submitBlock(){
   readForm();F.end=F.end||F.start;if(!F.start){alert('Please enter a measure number!');return;}
