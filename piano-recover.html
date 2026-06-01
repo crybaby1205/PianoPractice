@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Piano Hero - Data Recovery</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:#07060f;color:#eef0f8;font-family:'Trebuchet MS',Arial,sans-serif;padding:20px;min-height:100vh}
+h1{font-size:1.3rem;font-weight:900;color:#b39dff;margin-bottom:6px}
+.sub{font-size:.8rem;color:rgba(238,240,248,.45);margin-bottom:24px;line-height:1.6}
+.card{background:#0f0e1c;border:1.5px solid rgba(124,58,237,.35);border-radius:16px;padding:18px;margin-bottom:16px}
+.card-title{font-size:.95rem;font-weight:900;color:#b39dff;margin-bottom:6px}
+.card-sub{font-size:.75rem;color:rgba(238,240,248,.45);margin-bottom:14px;line-height:1.6}
+.btn{display:block;width:100%;padding:14px;border-radius:12px;border:none;font-size:.95rem;font-weight:900;cursor:pointer;margin-bottom:10px;font-family:inherit;transition:all .15s}
+.btn:active{transform:translateY(1px)}
+.btn-pu{background:linear-gradient(135deg,#3b1d8a,#7c3aed);color:#fff;box-shadow:0 3px 0 #250a5a}
+.btn-go{background:linear-gradient(135deg,#78350f,#d97706);color:#fff;box-shadow:0 3px 0 #3d1a00}
+.btn-gr{background:linear-gradient(135deg,#065f46,#10b981);color:#fff;box-shadow:0 3px 0 #022c22}
+.btn-rd{background:linear-gradient(135deg,#7f1d1d,#dc2626);color:#fff;box-shadow:0 3px 0 #450a0a}
+.btn-gh{background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.1);color:rgba(238,240,248,.6)}
+.status{border-radius:10px;padding:12px 14px;font-size:.82rem;font-weight:700;margin-bottom:12px;line-height:1.6;display:none}
+.status.ok{background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.3);color:#6ee7b7;display:block}
+.status.warn{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);color:#fde68a;display:block}
+.status.err{background:rgba(220,38,38,.12);border:1px solid rgba(220,38,38,.3);color:#fca5a5;display:block}
+textarea{width:100%;background:rgba(255,255,255,.04);border:1.5px solid rgba(124,58,237,.3);border-radius:10px;color:#eef0f8;font-size:.72rem;font-family:'Courier New',monospace;padding:10px;resize:vertical;outline:none;margin-top:8px}
+textarea:focus{border-color:#7c3aed}
+.data-preview{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:12px;font-size:.72rem;color:rgba(238,240,248,.55);font-family:'Courier New',monospace;word-break:break-all;max-height:120px;overflow-y:auto;margin-bottom:12px}
+.big-num{font-size:2rem;font-weight:900;color:#b39dff;line-height:1}
+.stat-row{display:flex;gap:10px;margin-bottom:14px}
+.stat{background:rgba(255,255,255,.05);border-radius:10px;padding:10px;flex:1;text-align:center}
+.stat-n{font-size:1.1rem;font-weight:900;color:#fff}
+.stat-l{font-size:.58rem;color:rgba(238,240,248,.4);margin-top:2px;text-transform:uppercase}
+.divider{height:1px;background:rgba(255,255,255,.07);margin:6px 0 14px}
+input[type=file]{display:none}
+</style>
+</head>
+<body>
+
+<h1>🎹 Piano Hero — Data Recovery</h1>
+<p class="sub">Use this page to back up or restore your son's practice data.<br>Open this on the same iPad Safari where the app lives.</p>
+
+<!-- STATUS -->
+<div id="status" class="status"></div>
+
+<!-- STEP 1: CHECK DATA -->
+<div class="card">
+  <div class="card-title">Step 1 — Check what's saved</div>
+  <div class="card-sub">Tap below to see if his data is still in this browser's storage.</div>
+  <button class="btn btn-pu" onclick="checkData()">🔍 Check for Saved Data</button>
+  <div id="data-summary" style="display:none">
+    <div class="stat-row">
+      <div class="stat"><div class="stat-n" id="sum-pieces">0</div><div class="stat-l">Pieces</div></div>
+      <div class="stat"><div class="stat-n" id="sum-blocks">0</div><div class="stat-l">Sections</div></div>
+      <div class="stat"><div class="stat-n" id="sum-reps">0</div><div class="stat-l">Total Reps</div></div>
+      <div class="stat"><div class="stat-n" id="sum-tasks">0</div><div class="stat-l">Tasks</div></div>
+    </div>
+    <div class="data-preview" id="data-preview"></div>
+  </div>
+</div>
+
+<!-- STEP 2: EXPORT -->
+<div class="card">
+  <div class="card-title">Step 2 — Export &amp; back up the data</div>
+  <div class="card-sub">This saves all his practice data as a file. Keep it somewhere safe (Files app, email it to yourself, etc).</div>
+  <button class="btn btn-go" onclick="exportData()">💾 Export Data as File</button>
+  <button class="btn btn-gh" onclick="copyData()">📋 Copy Data as Text (alternative)</button>
+  <textarea id="copy-box" rows="4" placeholder="Copied data will appear here..." style="display:none"></textarea>
+</div>
+
+<!-- STEP 3: FIX THE APP -->
+<div class="card">
+  <div class="card-title">Step 3 — Fix the frozen app</div>
+  <div class="card-sub">If the app is frozen, the storage may be corrupted. This clears and reloads it from your backup. <strong style="color:#fde68a">Only do this after you have exported your data above!</strong></div>
+  <button class="btn btn-gr" onclick="fixApp()" id="fix-btn" disabled>✅ I've exported — Fix &amp; Reload Data</button>
+  <div class="divider"></div>
+  <div class="card-sub" style="color:rgba(248,113,113,.7)">⚠️ Nuclear option — only if nothing else works:</div>
+  <button class="btn btn-rd" onclick="clearAll()">🗑 Clear All Storage (lose data)</button>
+</div>
+
+<!-- STEP 4: RESTORE -->
+<div class="card">
+  <div class="card-title">Restore from a backup file</div>
+  <div class="card-sub">If you have a previously exported backup file, import it here to restore all data.</div>
+  <button class="btn btn-pu" onclick="document.getElementById('file-in').click()">📂 Import Backup File</button>
+  <input type="file" id="file-in" accept=".json,.txt" onchange="importFile(this)">
+  <div class="divider"></div>
+  <div class="card-sub">Or paste the backup text directly:</div>
+  <textarea id="paste-box" rows="5" placeholder="Paste backup text here..."></textarea>
+  <button class="btn btn-go" onclick="importPasted()" style="margin-top:8px">📥 Restore from Pasted Text</button>
+</div>
+
+<script>
+const SK = 'piano_hero_v4';
+let foundData = null;
+
+function showStatus(msg, type){
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = 'status ' + type;
+  el.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function checkData(){
+  try {
+    const raw = localStorage.getItem(SK);
+    if(!raw){
+      showStatus('⚠️ No data found for key "piano_hero_v4" in this browser. The data may have been cleared, or this is a different browser/device than where the app was used.', 'warn');
+      document.getElementById('data-summary').style.display = 'none';
+      return;
+    }
+    const data = JSON.parse(raw);
+    foundData = data;
+
+    // count stats
+    const pieces = data.pieces || [];
+    let blocks = 0, reps = 0;
+    pieces.forEach(p => {
+      blocks += (p.blocks||[]).length;
+      (p.blocks||[]).forEach(b => {
+        if(b.repsHit) Object.values(b.repsHit).forEach(v => reps += (v||0));
+      });
+    });
+    const tasks = (data.tasks||[]).length;
+
+    document.getElementById('sum-pieces').textContent = pieces.length;
+    document.getElementById('sum-blocks').textContent = blocks;
+    document.getElementById('sum-reps').textContent = reps;
+    document.getElementById('sum-tasks').textContent = tasks;
+    document.getElementById('data-preview').textContent = raw.substring(0, 300) + (raw.length > 300 ? '...' : '');
+    document.getElementById('data-summary').style.display = 'block';
+    document.getElementById('fix-btn').disabled = false;
+
+    showStatus('✅ Data found! ' + pieces.length + ' piece(s), ' + blocks + ' section(s), ' + reps + ' total reps. Now export it using Step 2.', 'ok');
+  } catch(e) {
+    showStatus('❌ Data found but it is corrupted and cannot be read: ' + e.message, 'err');
+    document.getElementById('data-summary').style.display = 'none';
+    document.getElementById('fix-btn').disabled = false;
+  }
+}
+
+function exportData(){
+  try {
+    const raw = localStorage.getItem(SK);
+    if(!raw){ showStatus('⚠️ No data to export. Run Step 1 first.', 'warn'); return; }
+
+    // Try to download as file
+    const blob = new Blob([raw], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'piano-hero-backup-' + new Date().toISOString().slice(0,10) + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showStatus('✅ Backup file downloaded! Save it to your Files app or email it to yourself. Then proceed to Step 3 if the app is frozen.', 'ok');
+    document.getElementById('fix-btn').disabled = false;
+  } catch(e) {
+    showStatus('⚠️ File download not supported on this browser. Use the "Copy Data as Text" button instead.', 'warn');
+  }
+}
+
+function copyData(){
+  const raw = localStorage.getItem(SK);
+  if(!raw){ showStatus('⚠️ No data found. Run Step 1 first.', 'warn'); return; }
+  const box = document.getElementById('copy-box');
+  box.style.display = 'block';
+  box.value = raw;
+  box.focus();
+  box.select();
+  try {
+    document.execCommand('copy');
+    showStatus('✅ Data copied to clipboard! Paste it somewhere safe (Notes app, email to yourself). Then proceed to Step 3.', 'ok');
+  } catch(e) {
+    showStatus('⚠️ Please manually select all the text in the box below and copy it.', 'warn');
+  }
+  document.getElementById('fix-btn').disabled = false;
+}
+
+function fixApp(){
+  if(!confirm('This will clear the storage and reload your backed-up data fresh. Make sure you have exported first!')) return;
+  try {
+    const raw = localStorage.getItem(SK);
+    // Clear everything then re-write just the app data
+    localStorage.clear();
+    if(raw) localStorage.setItem(SK, raw);
+    showStatus('✅ Storage cleared and data reloaded! Now go back to the main app — it should work.', 'ok');
+  } catch(e) {
+    showStatus('❌ Error: ' + e.message, 'err');
+  }
+}
+
+function clearAll(){
+  if(!confirm('⚠️ This will DELETE ALL data permanently. Are you sure? There is no undo.')) return;
+  if(!confirm('Last chance — all practice history will be gone forever. Really delete?')) return;
+  localStorage.clear();
+  showStatus('Storage cleared. All data deleted. The app will start fresh.', 'warn');
+  document.getElementById('data-summary').style.display = 'none';
+  foundData = null;
+}
+
+function importFile(input){
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    restoreFromText(e.target.result);
+  };
+  reader.readAsText(file);
+}
+
+function importPasted(){
+  const text = document.getElementById('paste-box').value.trim();
+  if(!text){ showStatus('⚠️ Paste your backup text first.', 'warn'); return; }
+  restoreFromText(text);
+}
+
+function restoreFromText(text){
+  try {
+    const data = JSON.parse(text);
+    if(!data.pieces && !data.tasks) throw new Error('Does not look like a Piano Hero backup file');
+
+    const pieces = (data.pieces||[]).length;
+    let reps = 0;
+    (data.pieces||[]).forEach(p => (p.blocks||[]).forEach(b => {
+      if(b.repsHit) Object.values(b.repsHit).forEach(v => reps += (v||0));
+    }));
+
+    localStorage.setItem(SK, text);
+    showStatus('✅ Data restored! ' + pieces + ' piece(s) with ' + reps + ' reps loaded. You can now go back to the main app.', 'ok');
+    checkData();
+  } catch(e) {
+    showStatus('❌ Could not restore: ' + e.message + '. Make sure you pasted the full backup text.', 'err');
+  }
+}
+
+// Auto-check on load
+window.onload = function(){ checkData(); };
+</script>
+</body>
+</html>
