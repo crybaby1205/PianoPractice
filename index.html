@@ -184,7 +184,13 @@ input.reps-n{flex:1;font-size:1.05rem;font-weight:900;padding:7px 5px}
 <div id="hdr">
   <div class="hdr-row">
     <div><div class="hdr-title">&#127929; <span>Piano</span> Hero</div><div class="hdr-date" id="dateStr"></div></div>
-    <div class="minikeys" id="minikeys"></div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
+      <div class="minikeys" id="minikeys"></div>
+      <div style="display:flex;gap:5px">
+        <button onclick="exportBackup()" style="padding:4px 9px;border-radius:8px;background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.35);color:#6ee7b7;font-size:.6rem;font-weight:800;cursor:pointer" title="Back up data">&#128190; Backup</button>
+        <button onclick="importBackup()" style="padding:4px 9px;border-radius:8px;background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.35);color:#b39dff;font-size:.6rem;font-weight:800;cursor:pointer" title="Restore data">&#128228; Restore</button>
+      </div>
+    </div>
   </div>
   <div class="stat-row">
     <div class="stat"><div class="stat-n" id="sReps">0</div><div class="stat-l">&#127925; Reps</div></div>
@@ -262,9 +268,85 @@ const HMODES=[
   {id:'separate',label:'Track Each Hand'},
 ];
 
-function load(){try{const s=localStorage.getItem(SK);if(s)S=JSON.parse(s);}catch{}}
-function save(){try{localStorage.setItem(SK,JSON.stringify(S));}catch{}}
+function load(){
+  try{
+    const s=localStorage.getItem(SK);
+    if(s){
+      const parsed=JSON.parse(s);
+      if(parsed.pieces) parsed.pieces=parsed.pieces.map(sanitisePiece);
+      if(!parsed.tasks) parsed.tasks=[];
+      S=parsed;
+    }
+  }catch(e){ console.warn('Load failed, starting fresh.',e); S={pieces:[],tasks:[]}; }
+}
+function sanitisePiece(p){
+  if(!p) return {id:Date.now(),name:'Unknown',blocks:[]};
+  p.blocks=(p.blocks||[]).map(sanitiseBlock).filter(Boolean);
+  return p;
+}
+function sanitiseBlock(b){
+  if(!b) return null;
+  b.speedFrom =Math.max(1,  Math.min(300, parseInt(b.speedFrom)||60));
+  b.speedTo   =Math.max(b.speedFrom, Math.min(300, parseInt(b.speedTo)||b.speedFrom));
+  b.speedStep =Math.max(1,  Math.min(100, parseInt(b.speedStep)||5));
+  b.repsTarget=Math.max(1,  Math.min(99,  parseInt(b.repsTarget)||5));
+  if(!b.repsHit)  b.repsHit={};
+  if(!b.handMode) b.handMode='right';
+  if(!b.start)    b.start='1';
+  if(!b.end)      b.end=b.start;
+  return b;
+}
+function save(){
+  try{ localStorage.setItem(SK,JSON.stringify(S)); }
+  catch(e){ console.warn('Save failed',e); }
+}
 load();
+
+function exportBackup(){
+  try{
+    const raw=JSON.stringify(S,null,2);
+    const blob=new Blob([raw],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url; a.download='piano-hero-backup-'+new Date().toISOString().slice(0,10)+'.json';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+    showToast('Backup file saved!');
+  }catch(e){
+    alert('Tap OK then copy all this text and save it:\n\n'+JSON.stringify(S));
+  }
+}
+function importBackup(){
+  const inp=document.createElement('input');
+  inp.type='file'; inp.accept='.json,.txt';
+  inp.onchange=function(){
+    const file=inp.files[0]; if(!file) return;
+    const r=new FileReader();
+    r.onload=function(e){
+      try{
+        const data=JSON.parse(e.target.result);
+        if(!data.pieces && !data.tasks) throw new Error('Not a valid backup file');
+        if(!data.pieces) data.pieces=[];
+        if(!data.tasks)  data.tasks=[];
+        data.pieces=data.pieces.map(sanitisePiece);
+        S=data; save(); renderAll();
+        showToast('Data restored! '+S.pieces.length+' piece(s) loaded.');
+      }catch(err){ alert('Could not restore: '+err.message); }
+    };
+    r.readAsText(file);
+  };
+  document.body.appendChild(inp); inp.click(); document.body.removeChild(inp);
+}
+function showToast(msg){
+  let t=document.getElementById('toast');
+  if(!t){
+    t=document.createElement('div'); t.id='toast';
+    t.style.cssText='position:fixed;bottom:32px;left:50%;transform:translateX(-50%);background:#10b981;color:#fff;font-weight:800;font-size:.85rem;padding:10px 22px;border-radius:20px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.5);transition:opacity .4s;white-space:nowrap;pointer-events:none';
+    document.body.appendChild(t);
+  }
+  t.textContent=msg; t.style.opacity='1';
+  clearTimeout(t._tmr); t._tmr=setTimeout(()=>t.style.opacity='0',2800);
+}
 
 (function init(){
   const c=document.getElementById('minikeys');
@@ -302,8 +384,12 @@ function updateStats(){
 }
 
 function sSteps(b){
-  const f=parseInt(b.speedFrom)||60,t=parseInt(b.speedTo)||f,s=Math.max(1,parseInt(b.speedStep)||5);
-  const a=[];for(let v=f;v<=t;v+=s)a.push(v);
+  // Hard-clamp everything so this can NEVER infinite-loop regardless of stored data
+  const f=Math.max(1,Math.min(300,parseInt(b.speedFrom)||60));
+  const t=Math.max(f,Math.min(300,parseInt(b.speedTo)||f));
+  const s=Math.max(1,Math.min(100,parseInt(b.speedStep)||5));
+  const a=[];
+  for(let v=f;v<=t&&a.length<60;v+=s)a.push(v);  // max 60 steps, never infinite
   if(!a.length||a[a.length-1]!==t)a.push(t);
   return[...new Set(a)];
 }
